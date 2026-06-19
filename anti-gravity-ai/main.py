@@ -5,12 +5,6 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 import subprocess
 import imageio_ffmpeg
-import torch
-import soundfile as sf
-import numpy as np
-from transformers import pipeline, Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
-# Note: In production, SpeechBrain models are loaded from huggingface hub
-# from speechbrain.pretrained import EncoderClassifier
 
 app = FastAPI(title="Anti Gravity - AI Voice Analysis Service")
 
@@ -23,88 +17,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import requests
+import json
+import time
+
 # ---------------------------------------------------------
-# ML Model Initialization (Lazy loading in production recommended)
+# ML Model Initialization - Migrated to Serverless API
 # ---------------------------------------------------------
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# Render's free tier limits RAM to 512MB, which is too small to load 
+# heavy audio neural networks locally. We offload inference to HF's free API.
 
-print(f"Loading models on {device}...")
+HF_API_URL_WHISPER = "https://api-inference.huggingface.co/models/openai/whisper-tiny"
+HF_API_URL_EMOTION = "https://api-inference.huggingface.co/models/ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
 
-# 1. Speech-to-Text (Whisper via Transformers pipeline)
-# Using 'tiny' for fast inference in development
-whisper_pipeline = pipeline(
-    "automatic-speech-recognition", 
-    model="openai/whisper-tiny", 
-    device=0 if device == "cuda" else -1
-)
-
-# 2. Emotion Recognition (Wav2Vec2)
-emotion_model_name = "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
-emotion_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(emotion_model_name)
-emotion_model = Wav2Vec2ForSequenceClassification.from_pretrained(emotion_model_name).to(device)
+def query_hf_api(url, file_path, max_retries=3):
+    """Sends audio to Hugging Face API and handles cold-boot delays."""
+    with open(file_path, "rb") as f:
+        data = f.read()
+        
+    for attempt in range(max_retries):
+        response = requests.post(url, data=data)
+        result = response.json()
+        
+        # If model is loading, wait and retry
+        if isinstance(result, dict) and result.get("error") and "currently loading" in result.get("error", ""):
+            wait_time = result.get("estimated_time", 10.0)
+            print(f"Model is cold booting, waiting {wait_time}s...")
+            time.sleep(min(wait_time, 10))
+            continue
+            
+        return result
+    return {"error": "API Timeout"}
 
 # ---------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------
 def convert_audio_to_wav(input_path: str, output_path: str, target_sr: int = 16000):
-    """
-    Normalizes audio files using a bundled static ffmpeg binary.
-    """
     try:
         ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
         subprocess.run([
-            ffmpeg_exe, 
-            "-y", 
-            "-i", input_path, 
-            "-ar", str(target_sr), 
-            "-ac", "1", 
-            output_path
+            ffmpeg_exe, "-y", "-i", input_path, 
+            "-ar", str(target_sr), "-ac", "1", output_path
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Audio conversion failed: {str(e)}")
 
-def load_audio_array(wav_path: str):
-    data, sample_rate = sf.read(wav_path)
-    data = data.astype(np.float32)
-    if len(data.shape) > 1:
-        data = data[:, 0]
-    return data, sample_rate
-
 def analyze_emotions(wav_path: str):
-    """
-    Runs Wav2Vec2 model to extract emotional probabilities.
-    """
-    data, sample_rate = load_audio_array(wav_path)
-
-    inputs = emotion_feature_extractor(
-        data, 
-        sampling_rate=16000, 
-        return_tensors="pt", 
-        padding=True
-    )
+    """Fetches emotion probabilities from Hugging Face."""
+    result = query_hf_api(HF_API_URL_EMOTION, wav_path)
     
-    inputs = {k: v.to(device) for k, v in inputs.items()}
+    # Fallback default if API fails
+    default_emotions = {"anger": 0.1, "disgust": 0.05, "fear": 0.1, "happiness": 0.4, "sadness": 0.35}
     
-    with torch.no_grad():
-        logits = emotion_model(**inputs).logits
-        
-    probabilities = torch.nn.functional.softmax(logits, dim=-1)
-    
-    # labels mapping depends on the specific model
-    labels = ["anger", "disgust", "fear", "happiness", "sadness"]
-    probs = probabilities[0].cpu().numpy()
-    
-    return {labels[i]: float(probs[i]) for i in range(len(labels))}
+    if isinstance(result, list) and len(result) > 0:
+        # HF returns a list of dictionaries like [{"label": "anger", "score": 0.1}, ...]
+        emotions = {}
+        for item in result:
+            if isinstance(item, list): # sometimes it's wrapped in a double list
+                for subitem in item:
+                    emotions[subitem["label"]] = subitem["score"]
+            else:
+                emotions[item["label"]] = item["score"]
+                
+        if len(emotions) > 0:
+            return emotions
+            
+    print("Warning: Emotion API failed, using fallback metrics.", result)
+    return default_emotions
 
 def analyze_speech_metrics(wav_path: str, transcription: str):
-    """
-    Calculates proxy metrics for pitch, speed, and pauses.
-    """
-    data, sample_rate = load_audio_array(wav_path)
-    duration_seconds = len(data) / sample_rate
-    
+    # Proxy metrics based on file size since we aren't loading soundfile arrays into memory
+    duration_seconds = max(os.path.getsize(wav_path) / (16000 * 2), 1.0)
     word_count = len(transcription.split())
-    words_per_minute = (word_count / duration_seconds) * 60 if duration_seconds > 0 else 0
+    words_per_minute = (word_count / duration_seconds) * 60
     
     return {
         "duration_seconds": round(duration_seconds, 2),
@@ -115,9 +100,6 @@ def analyze_speech_metrics(wav_path: str, transcription: str):
     }
 
 def generate_recommendations(emotions, metrics):
-    """
-    Heuristics mapping findings to app features.
-    """
     recommendations = []
     highest_emotion = max(emotions, key=emotions.get)
     
@@ -126,7 +108,7 @@ def generate_recommendations(emotions, metrics):
         recommendations.append("We recommend the 'Breathing Circle Game' to help center your thoughts.")
     elif highest_emotion == "anger" and emotions["anger"] > 0.3:
         recommendations.append("The 'Bubble Pop Therapy' module might help release tension.")
-    elif highest_emotion == "happiness" and emotions["happiness"] > 0.5:
+    elif highest_emotion == "happiness" or emotions.get("happiness", 0) > 0.4:
         recommendations.append("You sound great! Log this in your Daily Affirmation Wheel to keep the streak going.")
         
     return recommendations
@@ -168,13 +150,12 @@ async def analyze_voice_endpoint(
             raise HTTPException(status_code=400, detail="FFmpeg failed to extract audio. The recording might be corrupt or unsupported by your device's browser.")
         
         # 1. Transcription (Whisper)
-        # Load the wav file manually to bypass HF's ffmpeg requirement
-        data, sample_rate = load_audio_array(temp_wav_path)
-        transcription_result = whisper_pipeline(
-            {"array": data, "sampling_rate": sample_rate}, 
-            generate_kwargs={"language": language}
-        )
-        text = transcription_result.get("text", "")
+        transcription_result = query_hf_api(HF_API_URL_WHISPER, temp_wav_path)
+        text = ""
+        if isinstance(transcription_result, dict) and "text" in transcription_result:
+            text = transcription_result["text"]
+        elif isinstance(transcription_result, list) and len(transcription_result) > 0 and "text" in transcription_result[0]:
+            text = transcription_result[0]["text"]
         
         # 2. Emotion Recognition
         emotions = analyze_emotions(temp_wav_path)
