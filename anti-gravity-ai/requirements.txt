@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pydub
+transformers
+torch
+torchaudio
+openai
+speechbrain

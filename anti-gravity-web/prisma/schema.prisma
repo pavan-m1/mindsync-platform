@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("user") // 'user', 'admin', 'therapist'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile           Profile?
+  moodLogs          MoodLog[]
+  gamificationState GamificationState?
+  userBadges        UserBadge[]
+  voiceAnalyses     VoiceAnalysis[]
+}
+
+model Profile {
+  userId               String @id
+  user                 User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName             String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  preferences          String   @default("{}")
+}
+
+model MoodLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moodScore   Int      // 1 to 10
+  stressScore Int      @default(5) // 1 to 10
+  notes       String?
+  loggedAt    DateTime @default(now())
+}
+
+model GamificationState {
+  userId        String   @id
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentStreak Int      @default(0)
+  highestStreak Int      @default(0)
+  level         String   @default("Beginner")
+  xp            Int      @default(0)
+  lastCheckIn   DateTime?
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?
+  iconUrl     String?
+  users       UserBadge[]
+}
+
+model UserBadge {
+  userId     String
+  badgeId    String
+  unlockedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+}
+
+model VoiceAnalysis {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audioS3Key       String?
+  detectedEmotions String?
+  speechMetrics    String?
+  recommendations  String?
+  analyzedAt       DateTime @default(now())
+}
