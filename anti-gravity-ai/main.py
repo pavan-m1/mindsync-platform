@@ -27,8 +27,8 @@ import time
 # Render's free tier limits RAM to 512MB, which is too small to load 
 # heavy audio neural networks locally. We offload inference to HF's free API.
 
-HF_API_URL_WHISPER = "https://api-inference.huggingface.co/models/openai/whisper-tiny"
-HF_API_URL_EMOTION = "https://api-inference.huggingface.co/models/ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
+HF_API_URL_WHISPER = "https://router.huggingface.co/hf-inference/models/openai/whisper-tiny"
+HF_API_URL_EMOTION = "https://router.huggingface.co/hf-inference/models/ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
 
 def query_hf_api(url, file_path, max_retries=3):
     """Sends audio to Hugging Face API and handles cold-boot delays."""
