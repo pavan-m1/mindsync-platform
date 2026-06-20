@@ -6,12 +6,12 @@ import { authOptions } from "@/lib/auth";
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!(session?.user as any)?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const entries = await prisma.journalEntry.findMany({
-      where: { userId: session.user.id },
+      where: { userId: (session as any).user.id },
       orderBy: { createdAt: "desc" },
     });
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!(session?.user as any)?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const newEntry = await prisma.journalEntry.create({
       data: {
-        userId: session.user.id,
+        userId: (session as any).user.id,
         title: title || "Untitled Entry",
         content,
         aiSummary,

@@ -12,13 +12,13 @@ export default async function DashboardLayout({
 }) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
+  if (!(session?.user as any)?.id) {
     redirect("/login");
   }
 
   // Fetch latest mood for the Mood Avatar
   const latestMood = await prisma.moodLog.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: (session as any).user.id },
     orderBy: { loggedAt: "desc" },
   });
 
@@ -92,7 +92,7 @@ export default async function DashboardLayout({
           <div className="flex items-center gap-3 px-4 py-3 text-slate-300 bg-slate-800/50 rounded-xl">
             <UserCircle size={20} />
             <div className="flex-1 truncate">
-              <span className="text-xs font-medium block truncate">{session.user?.email}</span>
+              <span className="text-xs font-medium block truncate">{session?.user?.email}</span>
             </div>
           </div>
         </div>
