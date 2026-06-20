@@ -64,7 +64,7 @@ export default function MoodAvatarPage() {
           <div className="relative z-10 flex flex-col items-center">
             {/* The Avatar */}
             <div 
-              className={`w-40 h-40 md:w-56 md:h-56 rounded-full flex items-center justify-center text-7xl md:text-9xl shadow-2xl transition-all duration-500 ease-spring hover:scale-105 ${activeDetails.color} ${activeDetails.glow}`}
+              className={`w-40 h-40 md:w-56 md:h-56 rounded-full flex items-center justify-center text-7xl md:text-9xl shadow-2xl transition-all duration-500 ease-spring hover:scale-105 animate-float ${activeDetails.color} ${activeDetails.glow}`}
             >
               {activeDetails.emoji}
             </div>
