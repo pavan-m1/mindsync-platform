@@ -1,6 +1,7 @@
 "use client";
 
-import { HeartHandshake, MapPin, Star, Calendar, MessageCircle } from "lucide-react";
+import { useState } from "react";
+import { HeartHandshake, MapPin, Star, Calendar, MessageCircle, X, CheckCircle } from "lucide-react";
 
 const MOCK_SPECIALISTS = [
   {
@@ -39,6 +40,21 @@ const MOCK_SPECIALISTS = [
 ];
 
 export default function SpecialistsPage() {
+  const [selectedSpecialist, setSelectedSpecialist] = useState<any>(null);
+  const [bookingStatus, setBookingStatus] = useState<"idle" | "booking" | "success">("idle");
+
+  const handleBook = (spec: any) => {
+    setSelectedSpecialist(spec);
+    setBookingStatus("idle");
+  };
+
+  const confirmBooking = () => {
+    setBookingStatus("booking");
+    setTimeout(() => {
+      setBookingStatus("success");
+    }, 1500);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
@@ -98,7 +114,10 @@ export default function SpecialistsPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-3 mt-6 pt-4 border-t border-white/5">
-                <button className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => handleBook(spec)}
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                >
                   <Calendar size={16} />
                   Book Session
                 </button>
@@ -111,6 +130,69 @@ export default function SpecialistsPage() {
           </div>
         ))}
       </div>
+
+      {/* Booking Modal */}
+      {selectedSpecialist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 relative shadow-2xl animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setSelectedSpecialist(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            
+            {bookingStatus === "success" ? (
+              <div className="text-center space-y-4 py-6 text-white">
+                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
+                <h2 className="text-2xl font-bold">Booking Confirmed!</h2>
+                <p className="text-slate-400">An email confirmation has been sent for your appointment with {selectedSpecialist.name}.</p>
+                <button 
+                  onClick={() => setSelectedSpecialist(null)}
+                  className="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg font-semibold transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1">Book an Appointment</h2>
+                  <p className="text-sm text-slate-400">Select a time to speak with {selectedSpecialist.name}</p>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-300">Date</label>
+                    <input type="date" className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-300">Time</label>
+                    <select className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500">
+                      <option>09:00 AM</option>
+                      <option>10:30 AM</option>
+                      <option>01:00 PM</option>
+                      <option>03:00 PM</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-300">Reason for visit</label>
+                    <textarea rows={3} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500 resize-none"></textarea>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={confirmBooking}
+                  disabled={bookingStatus === "booking"}
+                  className="w-full bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
+                >
+                  {bookingStatus === "booking" ? "Confirming..." : "Confirm Booking"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

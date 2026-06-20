@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Activity, Mic, Target, UserCircle, LineChart, Book, MessageSquare, HeartHandshake } from "lucide-react";
 import { prisma } from "@/lib/db";
 
+import UserProfileMenu from "./UserProfileMenu";
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -74,7 +76,7 @@ export default async function DashboardLayout({
               </Link>
             </li>
             <li>
-              <Link href="/dashboard/games" className="flex items-center gap-3 px-3 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+              <Link href="/dashboard/gamification" className="flex items-center gap-3 px-3 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all">
                 <Target size={18} className="text-teal-400" />
                 <span className="font-medium text-sm">Gamification</span>
               </Link>
@@ -89,12 +91,7 @@ export default async function DashboardLayout({
         </nav>
 
         <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 px-4 py-3 text-slate-300 bg-slate-800/50 rounded-xl">
-            <UserCircle size={20} />
-            <div className="flex-1 truncate">
-              <span className="text-xs font-medium block truncate">{session?.user?.email}</span>
-            </div>
-          </div>
+          <UserProfileMenu email={session?.user?.email} />
         </div>
       </aside>
 
