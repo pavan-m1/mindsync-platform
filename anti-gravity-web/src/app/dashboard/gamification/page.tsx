@@ -161,6 +161,25 @@ export default function GamificationPage() {
         </div>
       </div>
 
+      {/* Daily Challenges Section */}
+      <div className="space-y-4 mt-12">
+        <h2 className="text-xl font-semibold text-white">Daily Self-Care Challenges</h2>
+        <p className="text-sm text-slate-400">Complete these simple personalized tasks to boost your mood.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            "Drink 8 glasses of water today.",
+            "Take a 10-minute walk outside.",
+            "Write 3 things you're grateful for.",
+            "Complete a 5-minute breathing exercise."
+          ].map((challenge, i) => (
+            <label key={i} className="glass-panel p-4 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-colors">
+              <input type="checkbox" className="w-5 h-5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500" />
+              <span className="text-slate-200 font-medium">{challenge}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }
