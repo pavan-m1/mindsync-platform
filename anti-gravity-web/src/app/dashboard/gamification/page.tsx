@@ -48,6 +48,26 @@ export default function GamificationPage() {
 
   const xpProgress = gameState ? (gameState.xp % 500) / 500 * 100 : 0;
 
+  const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [breathState, setBreathState] = useState<"Inhale" | "Hold" | "Exhale">("Inhale");
+
+  useEffect(() => {
+    if (activeGame === "breathing") {
+      const cycle = () => {
+        setBreathState("Inhale");
+        setTimeout(() => {
+          setBreathState("Hold");
+          setTimeout(() => {
+            setBreathState("Exhale");
+          }, 7000); // Hold for 7s
+        }, 4000); // Inhale for 4s
+      };
+      cycle();
+      const interval = setInterval(cycle, 19000); // 4 + 7 + 8 = 19s total cycle
+      return () => clearInterval(interval);
+    }
+  }, [activeGame]);
+
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="space-y-2">
@@ -161,7 +181,62 @@ export default function GamificationPage() {
         </div>
       </div>
 
+      {/* Mini Games Section */}
+      <div className="space-y-4 mt-12">
+        <h2 className="text-xl font-semibold text-white">Zen Mini Games</h2>
+        <p className="text-sm text-slate-400">Take a break and relax your mind with these interactive experiences.</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Breathing Game Card */}
+          <div 
+            onClick={() => setActiveGame(activeGame === "breathing" ? null : "breathing")}
+            className="glass-panel p-6 cursor-pointer hover:border-teal-500/50 transition-all flex flex-col items-center text-center space-y-4 group relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            
+            {activeGame === "breathing" ? (
+              <div className="w-full flex flex-col items-center py-8">
+                <div className="relative flex items-center justify-center w-32 h-32 mb-4">
+                  {/* Dynamic Breathing Circle */}
+                  <div 
+                    className={`absolute rounded-full bg-teal-500/20 border-2 border-teal-400 transition-all ease-in-out
+                      ${breathState === "Inhale" ? "w-32 h-32 duration-[4000ms]" : ""}
+                      ${breathState === "Hold" ? "w-32 h-32 duration-[7000ms]" : ""}
+                      ${breathState === "Exhale" ? "w-16 h-16 duration-[8000ms]" : ""}
+                    `} 
+                  />
+                  <div className="z-10 font-bold text-teal-300 text-xl tracking-widest uppercase">{breathState}</div>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">Click to stop</p>
+              </div>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-full bg-teal-500/10 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full border-2 border-teal-400 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">4-7-8 Breathing</h3>
+                  <p className="text-sm text-slate-400 mt-1">Calm your nervous system in 1 minute.</p>
+                </div>
+              </>
+            )}
+          </div>
 
+          {/* Mood Matching Game Card */}
+          <div className="glass-panel p-6 cursor-not-allowed opacity-75 flex flex-col items-center text-center space-y-4 relative overflow-hidden">
+            <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center">
+              <span className="text-2xl">🧩</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Mood Matcher</h3>
+              <p className="text-sm text-slate-400 mt-1">Match emojis to emotions (Coming Soon).</p>
+            </div>
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+               <span className="bg-slate-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-slate-700">Coming Soon</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </div>
   );

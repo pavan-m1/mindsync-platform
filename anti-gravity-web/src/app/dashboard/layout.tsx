@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Activity, Mic, Target, UserCircle, LineChart, Book, MessageSquare, HeartHandshake } from "lucide-react";
+import { Activity, Mic, Target, UserCircle, LineChart, Book, MessageSquare, HeartHandshake, Calendar } from "lucide-react";
 import { prisma } from "@/lib/db";
 
 import UserProfileMenu from "./UserProfileMenu";
@@ -85,6 +85,12 @@ export default async function DashboardLayout({
               <Link href="/dashboard/specialists" className="flex items-center gap-3 px-3 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all">
                 <HeartHandshake size={18} className="text-rose-400" />
                 <span className="font-medium text-sm">Specialists</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/appointments" className="flex items-center gap-3 px-3 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                <Calendar size={18} className="text-indigo-400" />
+                <span className="font-medium text-sm">Appointments</span>
               </Link>
             </li>
           </ul>

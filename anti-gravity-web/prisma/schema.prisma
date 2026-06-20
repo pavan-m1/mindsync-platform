@@ -23,6 +23,7 @@ model User {
   voiceAnalyses     VoiceAnalysis[]
   journalEntries    JournalEntry[]
   dailyChallenges   DailyChallenge[]
+  appointments      Appointment[]
 }
 
 model Profile {
@@ -103,6 +104,19 @@ model DailyChallenge {
   title       String
   isCompleted Boolean  @default(false)
   date        DateTime @default(now())
+}
+
+model Appointment {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialistId   Int
+  specialistName String
+  date           String
+  time           String
+  reason         String?
+  status         String   @default("Confirmed")
+  createdAt      DateTime @default(now())
 }
 
 model VerificationToken {

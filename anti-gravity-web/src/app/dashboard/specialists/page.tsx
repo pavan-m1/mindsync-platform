@@ -42,17 +42,43 @@ const MOCK_SPECIALISTS = [
 export default function SpecialistsPage() {
   const [selectedSpecialist, setSelectedSpecialist] = useState<any>(null);
   const [bookingStatus, setBookingStatus] = useState<"idle" | "booking" | "success">("idle");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("09:00 AM");
+  const [reason, setReason] = useState("");
 
   const handleBook = (spec: any) => {
     setSelectedSpecialist(spec);
     setBookingStatus("idle");
+    setDate("");
+    setReason("");
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
+    if (!date) {
+      alert("Please select a date.");
+      return;
+    }
     setBookingStatus("booking");
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          specialistId: selectedSpecialist.id,
+          specialistName: selectedSpecialist.name,
+          date,
+          time,
+          reason
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to book");
       setBookingStatus("success");
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      setBookingStatus("idle");
+      alert("Booking failed. Please try again.");
+    }
   };
 
   return (
@@ -164,11 +190,11 @@ export default function SpecialistsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-slate-300">Date</label>
-                    <input type="date" className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500" />
+                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500" />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-300">Time</label>
-                    <select className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500">
+                    <select value={time} onChange={(e) => setTime(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500">
                       <option>09:00 AM</option>
                       <option>10:30 AM</option>
                       <option>01:00 PM</option>
@@ -177,7 +203,7 @@ export default function SpecialistsPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-300">Reason for visit</label>
-                    <textarea rows={3} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500 resize-none"></textarea>
+                    <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-rose-500 resize-none"></textarea>
                   </div>
                 </div>
 
