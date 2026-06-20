@@ -12,6 +12,7 @@ model User {
   email         String    @unique
   passwordHash  String
   role          String    @default("user") // 'user', 'admin', 'therapist'
+  emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -20,6 +21,8 @@ model User {
   gamificationState GamificationState?
   userBadges        UserBadge[]
   voiceAnalyses     VoiceAnalysis[]
+  journalEntries    JournalEntry[]
+  dailyChallenges   DailyChallenge[]
 }
 
 model Profile {
@@ -28,6 +31,7 @@ model Profile {
   fullName             String?
   emergencyContactName String?
   emergencyContactPhone String?
+  companionPersona     String @default("Supportive Friend")
   preferences          String   @default("{}")
 }
 
@@ -79,4 +83,32 @@ model VoiceAnalysis {
   speechMetrics    String?
   recommendations  String?
   analyzedAt       DateTime @default(now())
+}
+
+model JournalEntry {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String?
+  content     String
+  aiSummary   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DailyChallenge {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  isCompleted Boolean  @default(false)
+  date        DateTime @default(now())
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
