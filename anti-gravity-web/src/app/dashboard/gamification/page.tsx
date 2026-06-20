@@ -23,9 +23,29 @@ export default function GamificationPage() {
     }
   };
 
+  const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [breathState, setBreathState] = useState<"Inhale" | "Hold" | "Exhale">("Inhale");
+
   useEffect(() => {
     fetchGameState();
   }, []);
+
+  useEffect(() => {
+    if (activeGame === "breathing") {
+      const cycle = () => {
+        setBreathState("Inhale");
+        setTimeout(() => {
+          setBreathState("Hold");
+          setTimeout(() => {
+            setBreathState("Exhale");
+          }, 7000); // Hold for 7s
+        }, 4000); // Inhale for 4s
+      };
+      cycle();
+      const interval = setInterval(cycle, 19000); // 4 + 7 + 8 = 19s total cycle
+      return () => clearInterval(interval);
+    }
+  }, [activeGame]);
 
   const handleCheckIn = async () => {
     setCheckingIn(true);
@@ -47,26 +67,6 @@ export default function GamificationPage() {
   if (loading) return <div className="p-8 text-white">Loading your achievements...</div>;
 
   const xpProgress = gameState ? (gameState.xp % 500) / 500 * 100 : 0;
-
-  const [activeGame, setActiveGame] = useState<string | null>(null);
-  const [breathState, setBreathState] = useState<"Inhale" | "Hold" | "Exhale">("Inhale");
-
-  useEffect(() => {
-    if (activeGame === "breathing") {
-      const cycle = () => {
-        setBreathState("Inhale");
-        setTimeout(() => {
-          setBreathState("Hold");
-          setTimeout(() => {
-            setBreathState("Exhale");
-          }, 7000); // Hold for 7s
-        }, 4000); // Inhale for 4s
-      };
-      cycle();
-      const interval = setInterval(cycle, 19000); // 4 + 7 + 8 = 19s total cycle
-      return () => clearInterval(interval);
-    }
-  }, [activeGame]);
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">

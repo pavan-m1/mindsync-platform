@@ -64,6 +64,12 @@ export default async function DashboardLayout({
               </Link>
             </li>
             <li>
+              <Link href="/dashboard/avatar" className="flex items-center gap-3 px-3 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                <UserCircle size={18} className="text-indigo-400" />
+                <span className="font-medium text-sm">Mood Avatar</span>
+              </Link>
+            </li>
+            <li>
               <Link href="/dashboard/companion" className="flex items-center gap-3 px-3 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all">
                 <MessageSquare size={18} className="text-pink-400" />
                 <span className="font-medium text-sm">Companions</span>
