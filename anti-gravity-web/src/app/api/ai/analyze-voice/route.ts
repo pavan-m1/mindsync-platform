@@ -58,42 +58,66 @@ export async function POST(req: NextRequest) {
     const result = await response.json();
     const transcription = result.text || "No speech detected.";
 
-    // Simple mock heuristic for emotions based on text length / keywords
-    // In a real app, you would pass this transcription to a Text Classification model
-    const textLower = transcription.toLowerCase();
-    
-    let stress = 0.3;
-    let anxiety = 0.3;
-    let sadness = 0.2;
-    let joy = 0.5;
+    // Send the transcription to Llama-3 to get real emotion inference
+    let emotions = { stress: 0.2, anxiety: 0.2, sadness: 0.1, joy: 0.5, calmness: 0.6 };
+    let recommendations = [
+      "Take a moment to write in your journal to reflect on these thoughts.",
+      "A short meditation session might help balance your current emotional state."
+    ];
 
-    if (textLower.includes("overwhelmed") || textLower.includes("stress") || textLower.includes("hard")) {
-      stress += 0.5;
-      anxiety += 0.3;
-      joy -= 0.3;
-    }
-    if (textLower.includes("sad") || textLower.includes("depressed") || textLower.includes("lonely")) {
-      sadness += 0.6;
-      joy -= 0.4;
-    }
-    if (textLower.includes("happy") || textLower.includes("good") || textLower.includes("great")) {
-      joy += 0.4;
-      stress -= 0.2;
+    try {
+      const llmResponse = await fetch(
+        "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct/v1/chat/completions",
+        {
+          headers: {
+            Authorization: `Bearer ${HF_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+          body: JSON.stringify({
+            model: "meta-llama/Meta-Llama-3-8B-Instruct",
+            messages: [
+              { 
+                role: "system", 
+                content: "You are an emotion analysis engine. Read the following text and output ONLY a valid JSON object with the following numerical keys (0.0 to 1.0): 'stress', 'anxiety', 'sadness', 'joy', 'calmness', and a string array 'recommendations' with 2 helpful mental health tips. DO NOT output any markdown blocks or other text, ONLY the raw JSON string."
+              },
+              { role: "user", content: transcription }
+            ],
+            max_tokens: 300,
+            stream: false
+          }),
+        }
+      );
+
+      if (llmResponse.ok) {
+        const llmResult = await llmResponse.json();
+        let content = llmResult.choices[0].message.content;
+        // Strip markdown backticks if the model ignores the prompt
+        content = content.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(content);
+        if (parsed.stress !== undefined) {
+          emotions = {
+            stress: parsed.stress || 0,
+            anxiety: parsed.anxiety || 0,
+            sadness: parsed.sadness || 0,
+            joy: parsed.joy || 0,
+            calmness: parsed.calmness || 0
+          };
+          if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
+            recommendations = parsed.recommendations;
+          }
+        }
+      } else {
+        console.error("LLM Inference Error:", await llmResponse.text());
+      }
+    } catch (err) {
+      console.error("Failed to parse emotions via LLM:", err);
     }
 
     return NextResponse.json({
       transcription,
-      emotions: {
-        stress: Math.min(1, Math.max(0, stress)),
-        anxiety: Math.min(1, Math.max(0, anxiety)),
-        sadness: Math.min(1, Math.max(0, sadness)),
-        joy: Math.min(1, Math.max(0, joy)),
-        calmness: Math.min(1, Math.max(0, 1 - stress))
-      },
-      recommendations: [
-        "Take a moment to write in your journal to reflect on these thoughts.",
-        "A short meditation session might help balance your current emotional state."
-      ]
+      emotions,
+      recommendations
     }, { status: 200 });
 
   } catch (error: any) {

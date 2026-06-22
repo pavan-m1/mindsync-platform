@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MindSync AI",
-  description: "Elevate your mental wellness with AI-powered voice analysis.",
+  title: "MindSync AI - Mental Wellness Platform",
+  description: "Your personal companion for mental wellness, journaling, and specialist connections.",
 };
 
 export default function RootLayout({
