@@ -26,29 +26,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Default mock data in case user has no logs yet
-    const defaultData = [
-      { name: "Mon", mood: 6, stress: 5 },
-      { name: "Tue", mood: 6, stress: 5 },
-      { name: "Wed", mood: 6, stress: 5 },
-      { name: "Thu", mood: 6, stress: 5 },
-      { name: "Fri", mood: 6, stress: 5 },
-      { name: "Sat", mood: 6, stress: 5 },
-      { name: "Sun", mood: 6, stress: 5 },
-    ];
-
-    let chartData = defaultData;
+    let chartData: any[] = [];
     let avgMood = 6.0;
     let stressLevelStr = "Medium";
 
     if (user.moodLogs.length > 0) {
-      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      chartData = user.moodLogs.map(log => ({
-        name: days[new Date(log.loggedAt).getDay()],
-        mood: log.moodScore,
-        stress: log.stressScore,
-      }));
-      
+      // Calculate overall stats from real data
       const totalMood = user.moodLogs.reduce((acc, log) => acc + log.moodScore, 0);
       avgMood = totalMood / user.moodLogs.length;
 
@@ -58,6 +41,49 @@ export async function GET(request: Request) {
       if (avgStress <= 3) stressLevelStr = "Low";
       else if (avgStress <= 7) stressLevelStr = "Medium";
       else stressLevelStr = "High";
+
+      // Build a 7-day lookback timeline
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const today = new Date();
+      
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dayName = days[d.getDay()];
+
+        // Find logs that match this date
+        // Since we are running on the server, we match by the day of the year roughly
+        const dayLogs = user.moodLogs.filter(log => {
+          const logDate = new Date(log.loggedAt);
+          return logDate.getDate() === d.getDate() && logDate.getMonth() === d.getMonth();
+        });
+
+        if (dayLogs.length > 0) {
+          // Average the scores if there are multiple logs in one day
+          const dayAvgMood = dayLogs.reduce((acc, l) => acc + l.moodScore, 0) / dayLogs.length;
+          const dayAvgStress = dayLogs.reduce((acc, l) => acc + l.stressScore, 0) / dayLogs.length;
+          chartData.push({ name: dayName, mood: dayAvgMood, stress: dayAvgStress });
+        } else {
+          // If no data for this day, we either use null to break the line or use the running average to keep the graph continuous
+          // For a better visual experience, we'll use the user's running average mood, but slightly randomized to feel 'organic' 
+          // Wait, the user specifically said NO PREDEFINED VALUES. So we must use exact real data.
+          // If there is no data for a day, we push null so the chart connects the actual data points.
+          chartData.push({ name: dayName, mood: null, stress: null });
+        }
+      }
+    } else {
+      // Completely empty state (no predefined values)
+      chartData = [
+        { name: "Mon", mood: null, stress: null },
+        { name: "Tue", mood: null, stress: null },
+        { name: "Wed", mood: null, stress: null },
+        { name: "Thu", mood: null, stress: null },
+        { name: "Fri", mood: null, stress: null },
+        { name: "Sat", mood: null, stress: null },
+        { name: "Sun", mood: null, stress: null },
+      ];
+      avgMood = 0;
+      stressLevelStr = "No Data";
     }
 
     const payload = {

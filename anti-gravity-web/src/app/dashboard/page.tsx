@@ -119,8 +119,8 @@ export default function DashboardOverview() {
                   contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }} 
                   itemStyle={{ color: '#f8fafc' }}
                 />
-                <Area type="monotone" dataKey="mood" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorMood)" />
-                <Area type="monotone" dataKey="stress" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorStress)" />
+                <Area type="monotone" dataKey="mood" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorMood)" connectNulls />
+                <Area type="monotone" dataKey="stress" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorStress)" connectNulls />
               </AreaChart>
             </ResponsiveContainer>
           </div>
