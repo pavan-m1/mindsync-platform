@@ -30,7 +30,6 @@ export async function POST(req: Request) {
         userId: user.id,
         moodScore: Number(moodScore),
         stressScore: Number(stressScore),
-        emotions: "[]",
       },
     });
 
