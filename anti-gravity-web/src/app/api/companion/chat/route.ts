@@ -32,41 +32,36 @@ export async function POST(req: NextRequest) {
 
     let aiResponse = "I'm having trouble connecting to my brain right now. Can we try again?";
 
-    if (process.env.HF_TOKEN) {
+    if (process.env.GEMINI_API_KEY) {
       try {
         const response = await fetch(
-          "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct/v1/chat/completions",
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
           {
             headers: {
-              Authorization: `Bearer ${process.env.HF_TOKEN}`,
               "Content-Type": "application/json",
             },
             method: "POST",
             body: JSON.stringify({
-              model: "meta-llama/Meta-Llama-3-8B-Instruct",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: message }
-              ],
-              max_tokens: 150,
-              stream: false
+              contents: [{ parts: [{ text: message }] }],
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              generationConfig: { maxOutputTokens: 150 }
             }),
           }
         );
 
         if (response.ok) {
           const result = await response.json();
-          aiResponse = result.choices[0].message.content;
+          aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
         } else {
-          console.error("HF API Error:", await response.text());
+          console.error("Gemini API Error:", await response.text());
         }
       } catch (err) {
-        console.error("Fetch to HF failed:", err);
+        console.error("Fetch to Gemini failed:", err);
       }
     } else {
       // Fallback if no token is provided during development
-      console.warn("No HF_TOKEN found. Using fallback.");
-      aiResponse = `[Real AI Disabled - Missing HF_TOKEN] As your ${activePersona}, I hear you saying: "${message}".`;
+      console.warn("No GEMINI_API_KEY found. Using fallback.");
+      aiResponse = `[Real AI Disabled - Missing GEMINI_API_KEY] As your ${activePersona}, I hear you saying: "${message}".`;
     }
 
     return NextResponse.json({

@@ -14,12 +14,10 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Call Hugging Face API for Speech-to-Text
-    // We use a public inference endpoint for demonstration.
-    // Ensure you have HF_TOKEN in your .env
-    const HF_TOKEN = process.env.HF_TOKEN;
-    if (!HF_TOKEN) {
-      console.warn("HF_TOKEN missing, returning mock transcription.");
+    // Call Gemini API for Speech-to-Text and Emotion Analysis
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY missing, returning mock transcription.");
       return NextResponse.json({
         transcription: "I have been feeling really overwhelmed lately with work and personal life.",
         emotions: {
@@ -27,7 +25,7 @@ export async function POST(req: NextRequest) {
           anxiety: 0.6,
           sadness: 0.4,
           joy: 0.1,
-          anger: 0.2
+          calmness: 0.2
         },
         recommendations: [
           "Try the 5-minute deep breathing exercise in Gamification.",
@@ -37,28 +35,8 @@ export async function POST(req: NextRequest) {
       }, { status: 200 });
     }
 
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/openai/whisper-tiny",
-      {
-        headers: {
-          Authorization: `Bearer ${HF_TOKEN}`,
-          "Content-Type": "audio/webm",
-        },
-        method: "POST",
-        body: buffer,
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("HF API Error:", errText);
-      throw new Error("Failed to transcribe audio via Hugging Face.");
-    }
-
-    const result = await response.json();
-    const transcription = result.text || "No speech detected.";
-
-    // Send the transcription to Llama-3 to get real emotion inference
+    const base64Audio = buffer.toString("base64");
+    let transcription = "No speech detected.";
     let emotions = { stress: 0.2, anxiety: 0.2, sadness: 0.1, joy: 0.5, calmness: 0.6 };
     let recommendations = [
       "Take a moment to write in your journal to reflect on these thoughts.",
@@ -66,52 +44,60 @@ export async function POST(req: NextRequest) {
     ];
 
     try {
-      const llmResponse = await fetch(
-        "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct/v1/chat/completions",
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           headers: {
-            Authorization: `Bearer ${HF_TOKEN}`,
             "Content-Type": "application/json",
           },
           method: "POST",
           body: JSON.stringify({
-            model: "meta-llama/Meta-Llama-3-8B-Instruct",
-            messages: [
-              { 
-                role: "system", 
-                content: "You are an emotion analysis engine. Read the following text and output ONLY a valid JSON object with the following numerical keys (0.0 to 1.0): 'stress', 'anxiety', 'sadness', 'joy', 'calmness', and a string array 'recommendations' with 2 helpful mental health tips. DO NOT output any markdown blocks or other text, ONLY the raw JSON string."
-              },
-              { role: "user", content: transcription }
-            ],
-            max_tokens: 300,
-            stream: false
-          }),
+            contents: [{
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: file.type || "audio/webm",
+                    data: base64Audio
+                  }
+                },
+                { 
+                  text: "You are an emotion analysis engine. Analyze the audio and provide the text transcription. Then analyze the emotion. Output ONLY a valid JSON object with a 'transcription' string key, and the following numerical keys (0.0 to 1.0): 'stress', 'anxiety', 'sadness', 'joy', 'calmness', and a string array 'recommendations' with 2 helpful mental health tips." 
+                }
+              ]
+            }],
+            generationConfig: {
+              maxOutputTokens: 500,
+              responseMimeType: "application/json"
+            }
+          })
         }
       );
 
-      if (llmResponse.ok) {
-        const llmResult = await llmResponse.json();
-        let content = llmResult.choices[0].message.content;
-        // Strip markdown backticks if the model ignores the prompt
-        content = content.replace(/```json/g, "").replace(/```/g, "").trim();
-        const parsed = JSON.parse(content);
-        if (parsed.stress !== undefined) {
-          emotions = {
-            stress: parsed.stress || 0,
-            anxiety: parsed.anxiety || 0,
-            sadness: parsed.sadness || 0,
-            joy: parsed.joy || 0,
-            calmness: parsed.calmness || 0
-          };
-          if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
-            recommendations = parsed.recommendations;
-          }
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("Gemini API Error:", errText);
+        throw new Error("Failed to transcribe audio via Gemini.");
+      }
+
+      const result = await response.json();
+      const contentText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (contentText) {
+        let parsed = JSON.parse(contentText);
+        transcription = parsed.transcription || transcription;
+        emotions = {
+          stress: parsed.stress || 0,
+          anxiety: parsed.anxiety || 0,
+          sadness: parsed.sadness || 0,
+          joy: parsed.joy || 0,
+          calmness: parsed.calmness || 0
+        };
+        if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
+          recommendations = parsed.recommendations;
         }
-      } else {
-        console.error("LLM Inference Error:", await llmResponse.text());
       }
     } catch (err) {
-      console.error("Failed to parse emotions via LLM:", err);
+      console.error("Failed to analyze voice via Gemini:", err);
     }
 
     return NextResponse.json({
